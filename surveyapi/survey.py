@@ -9,7 +9,11 @@ from bson import json_util
 
 app=Flask(__name__)
 api=Api(app)
-cors=CORS(app, resources={r"/surveydata": {"origins": "*"},r"/qdata":{"origins":"*"},r"/qdata/delete/":{"origins":"*"}})
+cors=CORS(app, resources={
+    r"/surveydata": {"origins": "*"},
+    r"/qdata":{"origins":"*"},
+    r"/qdata/delete/":{"origins":"*"},
+    r"/qdata/edit/":{"origins":"*"}})
 app.config['CORS_HEADERS'] = 'Content-Type'
 Survey = dbc.get_client().SurveyData.survey
 Questions=dbc.get_client().SurveyData.questions
@@ -78,13 +82,41 @@ def deleteQ(ref):
     docs=[doc for doc in Questions.aggregate(pipeline)]
     details=json.dumps(docs,default=json_util.default)
     details=(json.loads(details))
-    index=details[0]['index']
     tid=details[0]['topicID']
-    matchstr=f"data.{index}"
-    print(index)
     # Questions.update({"topicID":tid},{"$unset":{matchstr:1}})
     Questions.update({"topicID":tid},{"$pull":{"data":{"ref":ref}}})
-   
     return {"message":"connection okay"}
 
+@app.route("/qdata/edit/<string:ref>",methods=['GET'])
+@cross_origin(origin='*',headers=['Content-Type'])
+def giveqtoedit(ref):
+    pipeline=[
+    {
+        '$unwind': {
+            'path': '$data'
+        }
+    }, {
+        '$match': {
+            'data.ref': ref
+        }
+    }, {
+        '$project': {
+            '_id': 0
+        }
+    }
+    ]
+    docs=[doc for doc in Questions.aggregate(pipeline)]
+    details=json.dumps(docs,default=json_util.default)
+    return jsonify(json.loads(details))
+@app.route("/qdata/edit",methods=['POST'])
+@cross_origin(origin='*',headers=['Content-Type'])
+def addequestion():
+    json_data=request.get_json()
+    print(json_data['data'])
+    tid=json_data['topicID']
+    ref=json_data['data']['ref']
+    Questions.update_one({"topicID":tid},{"$pull":{"data":{"ref":ref}}})
+    Questions.update_one({"topicID":tid},{"$push":{"data":json_data['data']}})
+    Questions.update_one({"topicID":tid},{  "$push":{"data":{"$each":[],"$sort":{"ref":1}} }   })
+    return {"message":"Edited q received"}
 app.run(port=5000,debug=True)
