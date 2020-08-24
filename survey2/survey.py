@@ -17,7 +17,8 @@ cors=CORS(app, resources={
     r"/surveydata": {"origins": "*"},
     r"/qdata":{"origins":"*"},
     r"/qdata/delete/":{"origins":"*"},
-     r"/qdata/edit/":{"origins":"*"}
+     r"/qdata/edit/":{"origins":"*"},
+     r"/auth":{"origins":"*"}
     })
 app.config['CORS_HEADERS'] = 'Content-Type'
 Survey = dbc.get_client().SurveyData.survey
@@ -455,4 +456,4 @@ def getTextAnswers(tid,ref,question):
     return jsonify(json.loads(details))
 
 
-app.run(port=5000,debug=True)
+app.run()
